@@ -3,104 +3,46 @@ import os
 from PIL import Image
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
+import glob
 
 
-
-PATH_GT = './data/GT'
-PATH_HZ = 'C:\\Users\\alptk\\OneDrive\\Desktop\\data\\hazy'
 
 class Custom_Dataset(data.Dataset):
-    def __init__(self, mode='train'):
+    def __init__(self, path_g, path_hz, mode='train', batch_size=1  ):
         super(Custom_Dataset, self).__init__()
-        path_g = './data/GT'
-        path_hz = './data/hazy'
+        self.path_g = path_g
+        self.path_hz = path_hz
         self.mode = mode
-        test_images_gt, train_images_gt = [], []
-        test_images_hz, train_images_hz = [], []
-        tmpList = []
-
-        for file in os.listdir(path_g):
-            img = Image.open(os.path.join(path_g, file))
-            tmpList.append(img)
-        
-        test_images_gt = tmpList[45:]
-        train_images_gt = tmpList[:45]
-
-        tmpList = []
-
-        for file in os.listdir(path_hz):
-            img = Image.open(os.path.join(path_hz, file))
-            tmpList.append(img)
-        
-        test_images_hz = tmpList[45:]
-        train_images_hz = tmpList[:45]
-
-        if mode == 'train':
-            self.images_gt, self.images_hz = self.augmentation(train_images_gt, train_images_hz)
-        else:
-            self.images_gt = test_images_gt
-            self.images_hz = test_images_hz
-        
-        tmpList = []
+        self.batch_size = batch_size
+        self.mode = mode
     
     def __getitem__(self, index):
         
-        hazy = self.images_hz[index]
-        gt = self.images_gt[index]
+        num = "0"
+        if index < 9:
+            num = "0" + str(index + 1)
+        else:
+            num = str(index + 1)
 
-        hazy = transforms.ToTensor()(hazy)
-        gt = transforms.ToTensor()(gt)
+        img_clear = Image.open(os.path.join(self.path_g, num + '_GT.png'))
+        img_hazy = Image.open(os.path.join(self.path_hz, num + '_hazy.png'))
+        
+
+        hazy = transforms.ToTensor()(img_hazy)
+        gt = transforms.ToTensor()(img_clear)
 
         return gt, hazy
 
     def __len__(self):
-        return len(self.images_gt)
+        trainList = glob.glob(self.path_g + "/*.png")
+        return len(trainList)
     
-    def augmentation(self, gt_list, hazy_list):
+    
 
-        gt_list_augmented, hazy_list_augmented = [], []
-        horizontal_flip = transforms.RandomHorizontalFlip(p=1)
-        vertical_flip = transforms.RandomVerticalFlip(p=1)
-        crop = transforms.RandomCrop(size=(224,312))
-        rotate =  transforms.RandomRotation(degrees=66)
-        for gt, hazy in zip(gt_list, hazy_list):
-            
-            gt_list_augmented.append(gt)
-            hazy_list_augmented.append(hazy)
-
-            gt_hf = horizontal_flip(gt)
-            hazy_hf = horizontal_flip(hazy)
-
-            gt_list_augmented.append(gt_hf)
-            hazy_list_augmented.append(hazy_hf)
-            
-            gt_vf = vertical_flip(gt)
-            hazy_vf = vertical_flip(hazy)
-
-            gt_list_augmented.append(gt_vf)
-            hazy_list_augmented.append(hazy_vf)
-
-            gt_crop = crop(gt)
-            hazy_crop = crop(hazy)
-
-            gt_list_augmented.append(gt_crop)
-            hazy_list_augmented.append(hazy_crop)
+DenseHaze_train_loader = DataLoader(dataset=Custom_Dataset(mode='train', path_g="./data/train_aug/GT", path_hz="./data/train_aug/hazy"), batch_size=1, shuffle=True)
+DenseHaze_test_loader = DataLoader(dataset=Custom_Dataset(mode='test', path_g="./data/test/GT", path_hz="./data/test/hazy"), batch_size=1, shuffle=False)
 
 
-            gt_rot = rotate(gt)
-            hazy_rot = rotate(hazy)
-
-            gt_list_augmented.append(gt_rot)
-            hazy_list_augmented.append(hazy_rot)
-
-        return gt_list_augmented, hazy_list_augmented
-            
-
-""" if __name__ == "__main__":
         
-    loader = DataLoader(dataset=Custom_Dataset(mode='train'), batch_size=1, shuffle=True)
-
-    for i in range (len(loader)):
-        iterator = iter(loader)
-        x,y = next(iterator) """
+    
        
